@@ -1,0 +1,127 @@
+{
+  "$schema": "design-tokens/1.0",
+  "meta": {
+    "name": "Hardware Service Decision Copilot",
+    "version": "1.0.0",
+    "description": "Design tokens dla wewnętrznego narzędzia wsparcia NBP — reklamacje i zwroty sprzętu"
+  },
+  "color": {
+    "brand": {
+      "navy":       { "value": "#1C2E4A", "description": "Główny kolor instytucjonalny — primary, text, headings" },
+      "navy-light": { "value": "#2A4470", "description": "Navy rozjaśniony — hover state na navy bg" },
+      "navy-dark":  { "value": "#111D2E", "description": "Navy przyciemniony — active state" },
+      "gold":       { "value": "#C9913A", "description": "Akcent instytucjonalny — focus ring, links, CTA hover" },
+      "gold-light":  { "value": "#E8B86D", "description": "Złoto rozjaśnione — hover na gold" }
+    },
+    "surface": {
+      "page":   { "value": "#F5F4F1", "description": "Tło strony — ciepła, lekko ciepła biel" },
+      "card":   { "value": "#FFFFFF", "description": "Tło kart i paneli formularzy" },
+      "muted":  { "value": "#EDECE8", "description": "Tło sekcji drugorzędnych, disabled inputs" },
+      "overlay":{ "value": "rgba(28, 46, 74, 0.6)", "description": "Loading overlay" }
+    },
+    "text": {
+      "primary":   { "value": "#1C2E4A", "description": "Tekst główny — nagłówki, etykiety" },
+      "secondary": { "value": "#5B6678", "description": "Tekst drugorzędny — opisy, metadane" },
+      "disabled":  { "value": "#9BA4B0", "description": "Tekst wyłączony" },
+      "inverse":   { "value": "#FFFFFF", "description": "Tekst na ciemnym tle (navy bg)" },
+      "link":      { "value": "#C9913A", "description": "Linki i elementy interaktywne" }
+    },
+    "border": {
+      "default": { "value": "#DCD9D3", "description": "Obramowanie standardowe" },
+      "strong":  { "value": "#B8B3AB", "description": "Obramowanie wyróżnione — separatory" },
+      "focus":   { "value": "#C9913A", "description": "Focus ring — zgodny z akcent-gold" }
+    },
+    "status": {
+      "accepted": {
+        "bg":     { "value": "#E6F4ED", "description": "Tło: Zaakceptowano" },
+        "border": { "value": "#A3D4B8", "description": "Obramowanie: Zaakceptowano" },
+        "text":   { "value": "#155C35", "description": "Tekst: Zaakceptowano" },
+        "icon":   { "value": "#1A6B3E", "description": "Badge/ikona: Zaakceptowano" }
+      },
+      "rejected": {
+        "bg":     { "value": "#FAEAEA", "description": "Tło: Odrzucono" },
+        "border": { "value": "#E8AAAA", "description": "Obramowanie: Odrzucono" },
+        "text":   { "value": "#7A1C1C", "description": "Tekst: Odrzucono" },
+        "icon":   { "value": "#8F2020", "description": "Badge/ikona: Odrzucono" }
+      },
+      "pending": {
+        "bg":     { "value": "#FEF3DC", "description": "Tło: Wymaga weryfikacji" },
+        "border": { "value": "#F0CF8A", "description": "Obramowanie: Wymaga weryfikacji" },
+        "text":   { "value": "#6B4A00", "description": "Tekst: Wymaga weryfikacji" },
+        "icon":   { "value": "#9B6B00", "description": "Badge/ikona: Wymaga weryfikacji" }
+      },
+      "error": {
+        "bg":     { "value": "#FFF0F0", "description": "Tło: Błąd systemowy" },
+        "border": { "value": "#FFC0C0", "description": "Obramowanie: Błąd systemowy" },
+        "text":   { "value": "#8B1A1A", "description": "Tekst: Błąd systemowy" }
+      }
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": { "value": "'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif",
+                "description": "Krój bezszeryfowy — domyślny dla całej aplikacji (Segoe UI zawsze dostępny na Windows)" },
+      "mono": { "value": "'Cascadia Code', 'Courier New', Courier, monospace",
+                "description": "Krój monospace — kody, dane techniczne" }
+    },
+    "fontSize": {
+      "xs":   { "value": "0.75rem",   "px": "12px", "description": "Zastrzeżenia, mini-etykiety" },
+      "sm":   { "value": "0.875rem",  "px": "14px", "description": "Etykiety pól, metadane" },
+      "base": { "value": "1rem",      "px": "16px", "description": "Tekst główny" },
+      "lg":   { "value": "1.125rem",  "px": "18px", "description": "Wyróżniony tekst akapitowy" },
+      "xl":   { "value": "1.25rem",   "px": "20px", "description": "Tytuły sekcji" },
+      "2xl":  { "value": "1.5rem",    "px": "24px", "description": "Nagłówki stron" },
+      "3xl":  { "value": "1.875rem",  "px": "30px", "description": "Nagłówek główny aplikacji" }
+    },
+    "fontWeight": {
+      "regular":  { "value": "400" },
+      "medium":   { "value": "500" },
+      "semibold": { "value": "600" },
+      "bold":     { "value": "700" }
+    },
+    "lineHeight": {
+      "tight":   { "value": "1.25",  "description": "Nagłówki" },
+      "snug":    { "value": "1.375", "description": "Podtytuły" },
+      "normal":  { "value": "1.5",   "description": "Ciało tekstu" },
+      "relaxed": { "value": "1.625", "description": "Długie akapity, uzasadnienia" }
+    },
+    "letterSpacing": {
+      "tight":  { "value": "-0.015em", "description": "Duże nagłówki" },
+      "normal": { "value": "0em" },
+      "wide":   { "value": "0.05em",   "description": "Etykiety uppercase" },
+      "wider":  { "value": "0.08em",   "description": "Znaczniki sekcji uppercase" }
+    }
+  },
+  "spacing": {
+    "1":  { "value": "0.25rem",  "px": "4px" },
+    "2":  { "value": "0.5rem",   "px": "8px" },
+    "3":  { "value": "0.75rem",  "px": "12px" },
+    "4":  { "value": "1rem",     "px": "16px" },
+    "5":  { "value": "1.25rem",  "px": "20px" },
+    "6":  { "value": "1.5rem",   "px": "24px" },
+    "8":  { "value": "2rem",     "px": "32px" },
+    "10": { "value": "2.5rem",   "px": "40px" },
+    "12": { "value": "3rem",     "px": "48px" },
+    "16": { "value": "4rem",     "px": "64px" }
+  },
+  "borderRadius": {
+    "sm":   { "value": "0.25rem",  "px": "4px",     "description": "Tagi, badge inline" },
+    "md":   { "value": "0.375rem", "px": "6px",     "description": "Pola formularzy, przyciski" },
+    "lg":   { "value": "0.5rem",   "px": "8px",     "description": "Karty, panele" },
+    "xl":   { "value": "0.75rem",  "px": "12px",    "description": "Duże karty, modalne" },
+    "full": { "value": "9999px",                    "description": "Badge decyzji, avatar" }
+  },
+  "shadow": {
+    "sm": { "value": "0 1px 2px 0 rgb(28 46 74 / 0.06)",
+            "description": "Subtelny cień kart" },
+    "md": { "value": "0 4px 8px -2px rgb(28 46 74 / 0.10), 0 2px 4px -2px rgb(28 46 74 / 0.06)",
+            "description": "Cień dropdown, tooltip" },
+    "lg": { "value": "0 12px 24px -4px rgb(28 46 74 / 0.12), 0 4px 8px -2px rgb(28 46 74 / 0.06)",
+            "description": "Cień modalu, overlay" }
+  },
+  "transition": {
+    "fast":   { "value": "120ms ease", "description": "Hover, focus ring" },
+    "normal": { "value": "200ms ease", "description": "Przejścia komponentów" },
+    "slow":   { "value": "300ms ease", "description": "Overlay, rozwinięcia" }
+  }
+}
