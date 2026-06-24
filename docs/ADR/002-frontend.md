@@ -20,6 +20,29 @@ This ADR does NOT cover: API route logic (ADR-001), prompt templates or AI behav
 
 ---
 
+## 1a. Design System
+
+The visual language for the application is defined in two files that serve as the source of truth for all styling decisions:
+
+| File | Purpose |
+|---|---|
+| `assets/design-tokens.json` | Machine-readable token definitions — all colour hex values, type scale, spacing, border-radius, shadows, and transitions |
+| `docs/design-guidelines.md` | Human-readable usage rules — component specs, status colour semantics, accessibility constraints, and what to avoid |
+
+These tokens are applied in `app/app/globals.css` as CSS custom properties mapped to shadcn/ui's semantic variable names (`--primary`, `--background`, `--ring`, etc.).
+
+**Key token decisions relevant to implementing agents:**
+
+- `--primary` → NBP navy `#1C2E4A` (buttons, headings, text)
+- `--accent` / `--ring` → institutional gold `#C9913A` (focus ring, links, hover accents)
+- `--background` → warm off-white `#F5F4F1` (page surface — not pure white)
+- `--radius` → `0.375rem` (6 px — tighter than shadcn default for institutional feel)
+- Decision status colours are defined as `--status-accepted-*`, `--status-rejected-*`, `--status-pending-*` custom properties and must only be used for `DecisionBadge` — never repurposed as general accent colours
+
+When implementing any component, read `docs/design-guidelines.md` first and derive all colour and spacing values from the tokens rather than hardcoding hex values.
+
+---
+
 ## 2. Context7 References
 
 | Library | Context7 Handle | Used for |
