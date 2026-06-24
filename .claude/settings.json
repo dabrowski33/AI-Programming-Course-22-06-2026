@@ -24,6 +24,8 @@
       "Bash(git switch:*)",
       "Bash(git restore:*)",
       "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
       "Bash(git merge:*)",
       "Bash(git rebase:*)",
 
@@ -77,7 +79,6 @@
     "deny": [
       "Bash(rm:*)",
       "Bash(rmdir:*)",
-      "Bash(git push:*)",
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(chmod:*)",
