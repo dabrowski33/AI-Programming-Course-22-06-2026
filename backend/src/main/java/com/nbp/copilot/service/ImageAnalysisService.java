@@ -8,13 +8,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.model.Media;
+import org.springframework.ai.content.Media;  // renamed in Spring AI 1.0.x (was org.springframework.ai.model.Media)
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
 
 import java.util.Base64;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -31,12 +32,14 @@ public class ImageAnalysisService {
         byte[] imageBytes = Base64.getDecoder().decode(request.getImageBase64());
         MimeType mimeType = MimeType.valueOf(request.getImageMimeType());
 
+        // Spring AI 1.0.x builder pattern for UserMessage with media
         var imageMedia = new Media(mimeType, new ByteArrayResource(imageBytes));
-        String prompt = buildPrompt(request);
+        var userMessage = UserMessage.builder()
+                .text(buildPrompt(request))
+                .media(List.of(imageMedia))
+                .build();
 
-        var userMessage = new UserMessage(prompt, imageMedia);
         var response = chatModel.call(new Prompt(userMessage));
-
         String content = response.getResult().getOutput().getText();
         log.debug("Vision model response: {}", content);
 
@@ -60,7 +63,7 @@ public class ImageAnalysisService {
             return objectMapper.readValue(cleaned, ImageAnalysisResult.class);
         } catch (Exception e) {
             log.error("Failed to parse image analysis response", e);
-            ImageAnalysisResult fallback = new ImageAnalysisResult();
+            var fallback = new ImageAnalysisResult();
             fallback.setStatus("unreadable");
             fallback.setUnreadableReason("Could not parse model response");
             return fallback;

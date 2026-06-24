@@ -7,7 +7,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.StreamingChatModel;
+import org.springframework.ai.chat.model.ChatModel;  // ChatModel extends StreamingChatModel in 1.0.x
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -21,14 +21,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChatService {
 
-    private final StreamingChatModel streamingChatModel;
+    private final ChatModel chatModel;
 
     public Flux<String> streamChat(ChatRequest request) {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(buildSystemPrompt(request.getContext())));
         messages.addAll(toSpringMessages(request.getMessages()));
 
-        return streamingChatModel.stream(new Prompt(messages))
+        return chatModel.stream(new Prompt(messages))
                 .map(response -> response.getResult().getOutput().getText())
                 .filter(text -> text != null && !text.isEmpty());
     }
