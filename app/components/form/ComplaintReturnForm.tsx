@@ -115,7 +115,7 @@ export default function ComplaintReturnForm() {
         clearTimeout(timer)
         setSubmitting(false)
         setServerError(
-          "Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie."
+          "Wystąpił błąd podczas przetwarzania zgłoszenia."
         )
         return
       }
@@ -140,7 +140,7 @@ export default function ComplaintReturnForm() {
       clearTimeout(timer)
       setSubmitting(false)
       setServerError(
-        "Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie."
+        "Wystąpił błąd podczas przetwarzania zgłoszenia."
       )
     }
   }
@@ -158,17 +158,6 @@ export default function ComplaintReturnForm() {
   }
 
   const reasonRequired = isComplaint
-
-  if (submitting) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border bg-card p-10 text-center shadow-sm">
-        <Loader2Icon className="size-10 animate-spin text-primary" />
-        <p className="text-base font-medium text-foreground">
-          {LOADING_MESSAGES[loadingMessageIdx]}
-        </p>
-      </div>
-    )
-  }
 
   if (serverError) {
     return (
@@ -203,7 +192,7 @@ export default function ComplaintReturnForm() {
             className="w-full h-10"
             aria-invalid={!!errors.requestType}
           >
-            <SelectValue placeholder="Wybierz typ zgłoszenia" />
+            <SelectValue placeholder="Wybierz..." />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="reklamacja">Reklamacja</SelectItem>
@@ -347,6 +336,15 @@ export default function ComplaintReturnForm() {
           error={errors.imageFile}
         />
       </div>
+
+      {submitting && (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-muted/50 px-4 py-3">
+          <Loader2Icon className="size-4 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">
+            {LOADING_MESSAGES[loadingMessageIdx]}
+          </span>
+        </div>
+      )}
 
       <Button
         type="submit"

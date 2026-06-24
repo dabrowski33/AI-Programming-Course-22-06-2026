@@ -194,6 +194,8 @@ describe("ComplaintReturnForm", () => {
   beforeEach(() => {
     mockPush.mockClear()
     vi.clearAllMocks()
+    // Stub global.fetch so spy assertions work in every test
+    vi.stubGlobal("fetch", vi.fn())
     // sessionStorage mock
     Object.defineProperty(window, "sessionStorage", {
       value: {
