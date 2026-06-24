@@ -1,0 +1,28 @@
+.bubble-row {
+  display: flex;
+  margin-bottom: 4px;
+
+  &.user { justify-content: flex-end; }
+  &.assistant { justify-content: flex-start; }
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 4px;
+
+  mat-card-content p {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+}
+
+.user-bubble {
+  background-color: #e3f2fd;
+  color: #0d47a1;
+}
+
+.assistant-bubble {
+  background-color: #f5f5f5;
+  color: #212121;
+}

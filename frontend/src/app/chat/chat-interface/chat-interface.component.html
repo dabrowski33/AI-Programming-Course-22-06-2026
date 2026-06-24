@@ -1,0 +1,46 @@
+<mat-toolbar color="primary" class="chat-toolbar">
+  <span>Asystent NBP — Serwis Sprzętu</span>
+  <span class="spacer"></span>
+  <button mat-button (click)="newSession()">
+    <mat-icon>add_circle_outline</mat-icon>
+    Nowe zgłoszenie
+  </button>
+</mat-toolbar>
+
+<div class="message-list" #messageList>
+  @for (msg of messages; track $index) {
+    <app-message-bubble [message]="msg" />
+  }
+
+  @if (isLoading && messages.length > 0 && messages[messages.length - 1].content === '') {
+    <div class="typing-indicator">
+      <mat-spinner diameter="20" />
+      <span>Asystent pisze…</span>
+    </div>
+  }
+</div>
+
+<div class="input-area">
+  <mat-form-field appearance="outline" class="input-field">
+    <mat-label>Wpisz wiadomość</mat-label>
+    <textarea
+      matInput
+      [(ngModel)]="inputText"
+      [disabled]="isLoading"
+      rows="2"
+      (keydown.control.enter)="sendMessage()"
+      placeholder="Ctrl+Enter aby wysłać"
+    ></textarea>
+  </mat-form-field>
+
+  <button
+    mat-fab
+    color="primary"
+    class="send-btn"
+    [disabled]="isLoading || !inputText.trim()"
+    (click)="sendMessage()"
+    aria-label="Wyślij"
+  >
+    <mat-icon>send</mat-icon>
+  </button>
+</div>
