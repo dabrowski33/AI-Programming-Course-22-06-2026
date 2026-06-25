@@ -19,7 +19,7 @@ This document (000) covers the overall system: stack, repository layout, module 
 ### Scope decisions carried from PRD clarifications
 - **Primary user:** end customer (self-service); decision is **advisory**, never binding.
 - **Streaming:** the **first decision message** is generated as a structured result and shown after a spinner; **follow-up chat turns stream** token-by-token over SSE.
-- **State:** server-side **in-memory** session store behind an interface; no database in the MVP (persistence is Backlog — PRD §12).
+- **State:** server-side session store behind a `SessionStore` interface. The MVP shipped with an in-memory implementation; durable **H2 file-backed** persistence was since added — see [`004-persistence.md`](004-persistence.md), which supersedes the in-memory decision in §8.
 - **Run setup:** two local dev processes (Angular dev server → Spring Boot) with a dev proxy.
 - **LLM API:** **Chat Completions** via OpenRouter (not the Responses API — see §8 and ADR-002).
 
@@ -50,7 +50,7 @@ Libraries without a confirmed handle (resolve with `resolve-library-id` at imple
 - **Frontend:** Angular single-page app (standalone components, signal-based state).
 - **Backend:** Spring Boot **servlet (MVC)** application exposing a JSON/multipart REST API plus one SSE endpoint. MVC (not WebFlux) is chosen because the openai-java SDK is blocking; `SseEmitter` on a worker thread bridges the SDK's streaming iterator to the client cleanly (see §8).
 
-No database in the MVP. The backend is the only component that holds OpenRouter credentials and talks to the LLM provider; the browser never sees the API key.
+The backend persists case state in an embedded **H2** database (file-backed) via Spring Data JPA (see [`004-persistence.md`](004-persistence.md)). The backend is the only component that holds OpenRouter credentials and talks to the LLM provider; the browser never sees the API key.
 
 ### Repository structure
 ```
@@ -80,6 +80,7 @@ The two **policy documents** in `docs/policies/` are the source of truth for the
 | Backend runtime | Java 21 (LTS) | Current LTS; supported by openai-java and Spring Boot 3.5 |
 | Backend framework | Spring Boot 3.5.x (Spring Web MVC) | Mature servlet stack; first-class multipart, validation, `SseEmitter`; matches team expertise |
 | Build (backend) | Maven | Explicitly requested; standard for Spring Boot |
+| Persistence | H2 (file-backed) + Spring Data JPA | Embedded, pure-Java, zero native deps; durable session/audit store (ADR-004) |
 | LLM SDK | openai-java `com.openai:openai-java` (4.41.0, verify latest patch) | Official SDK; configurable base URL → OpenRouter; supports vision, streaming, structured outputs |
 | LLM provider | OpenRouter (Chat Completions API) | Provider per `.env.example`; normalized GA endpoint with stable vision + streaming + structured outputs |
 | Image compression | Thumbnailator (or built-in ImageIO) | Simple downscale + JPEG re-encode before base64 (ADR-001) |
@@ -98,7 +99,7 @@ The two **policy documents** in `docs/policies/` are the source of truth for the
 - **`application` (orchestration services)** — `CaseService` (form→analysis→decision orchestration), `ChatService` (follow-up streaming). Depends on `llm`, `session`, `image`, `policy`. Depended on by `web`.
 - **`llm` (LLM gateway)** — wraps openai-java; exposes `analyzeImage(...)`, `decide(...)`, `streamChat(...)`. Depends on SDK + config. Depended on by `application`. (ADR-002)
 - **`image` (compression)** — `ImageCompressor`. Pure utility. Depended on by `application`.
-- **`session` (state)** — `SessionStore` interface + in-memory implementation. Depended on by `application`. The interface is the seam for future SQLite persistence (Backlog).
+- **`session` (state)** — `SessionStore` interface with a default **H2/JPA implementation** (`JpaSessionStore`) and an in-memory implementation for tests. Depended on by `application`. The interface is the seam that let persistence be added without touching orchestration (see [`004-persistence.md`](004-persistence.md)).
 - **`policy` (rules loader)** — loads the two policy documents’ text. Depended on by `application`/`llm`.
 - **`config`** — client/bean wiring, environment binding. Depended on by all.
 
@@ -116,7 +117,7 @@ Direction: `features → core`; `shared` is leaf. No feature depends on another 
 
 ## 5. Data Models
 
-Conceptual (no schema code). Persisted **in memory** only, for the lifetime of the backend process.
+Conceptual (no schema code). Persisted durably in an embedded **H2** database via Spring Data JPA (see [`004-persistence.md`](004-persistence.md)); `ImageAnalysis` and `DecisionResult` are stored as JSON columns. The uploaded image bytes are **not** persisted (future backlog — S3-compatible blob).
 
 ### CaseSession
 The aggregate for one customer case.
@@ -163,7 +164,7 @@ Base path `/api/v1`. Full field-level detail in ADR-001.
 |---|---|---|---|---|
 | `/cases` | POST (multipart/form-data) | form fields + one image | `{ sessionId, decision, firstMessage, caseSummary }` (JSON) | Validates, compresses image, runs vision + decision; creates session |
 | `/cases/{sessionId}/messages` | POST | `{ message }` (JSON) | `text/event-stream` of token deltas + terminal event | Follow-up chat; **streamed** (SSE) |
-| `/cases/{sessionId}` | GET | — | case summary + transcript (JSON) | Optional convenience (page reload within session) |
+| `/cases/{sessionId}` | GET | — | `{ caseSummary, decision, transcript }` (JSON) | Restores the chat on reload/deep-link/after restart (ADR-004); `404` if unknown |
 | `/health` | GET | — | status | Liveness (Spring Boot Actuator acceptable) |
 
 Error model (shared): JSON `{ code, message, fields? }` with appropriate HTTP status. Concrete codes/statuses in ADR-001 (validation 400, unsupported type 415, too large 413, unknown session 404, upstream LLM failure 502/503).
@@ -209,15 +210,16 @@ The backend reads these via Spring configuration. The frontend never receives cr
 **Consequences:** (+) Simple, well-understood concurrency model; one worker thread per active stream. (−) Thread-per-stream does not scale to thousands of concurrent chats (irrelevant at MVP scale).
 **Review trigger:** If concurrent active chat streams are expected to exceed a few hundred.
 
-### Server-side in-memory session store behind an interface
-**Status:** Accepted **Date:** 2026-06-24
-**Context:** Conversation context (form, image analysis, decision, transcript) must persist across turns; the MVP has no database, but persistence is a planned Backlog item.
-**Decision:** Define a `SessionStore` interface with an in-memory (concurrent map) implementation. Sessions are keyed by `sessionId`. The interface is the seam to later add a SQLite-backed implementation without touching orchestration code.
+### Session store behind an interface (in-memory → H2)
+**Status:** Superseded by [`004-persistence.md`](004-persistence.md) **Date:** 2026-06-24 (superseded 2026-06-25)
+**Context:** Conversation context (form, image analysis, decision, transcript) must persist across turns.
+**Decision (original):** Define a `SessionStore` interface with an in-memory (concurrent map) implementation, keyed by `sessionId`. The interface is the seam to later add a durable implementation without touching orchestration code.
+**Update (2026-06-25):** The Backlog persistence item was delivered. A durable **H2 file-backed** `JpaSessionStore` is now the default implementation behind the same interface; the in-memory store is retained for tests. The engine is **H2, not SQLite** — full rationale in [`004-persistence.md`](004-persistence.md) §6. Orchestration code was unchanged, validating the seam.
 **Rejected alternatives:**
 - *Stateless (client resends full history):* larger payloads, client owns transcript, and re-uploading image-analysis context each turn is awkward.
-- *Immediate SQLite:* out of MVP scope; adds schema/migration work now.
-**Consequences:** (+) Small payloads, clean seam for persistence. (−) State lost on backend restart and not shared across instances (acceptable for single-instance MVP).
-**Review trigger:** When the Backlog persistence/audit item is started, or when running more than one backend instance.
+- *SQLite:* its only differentiator (doubling as a vector store) is not production-ready from Java; see ADR-004 §6.
+**Consequences:** (+) Small payloads; (+) durable across restarts. (−) H2 file is single-instance (acceptable for the MVP).
+**Review trigger:** Running more than one backend instance, or the future vector ADR selecting a server DB (Postgres) — see ADR-004 §9.
 
 ### Backend appends the mandatory disclaimer deterministically
 **Status:** Accepted **Date:** 2026-06-24
@@ -351,7 +353,7 @@ sequenceDiagram
 ## 10. Testing Strategy
 
 ### Philosophy
-TDD per `AGENTS.md`: write/extend tests from the spec before production code; tests are the agent's primary self-validation. The external LLM is the only thing mocked in integration tests; unit tests mock all dependencies; E2E runs the real stack with a stubbed/recorded LLM.
+TDD per `AGENTS.md`: write/extend tests from the spec before production code; tests are the agent's primary self-validation. The external LLM is the only thing mocked in integration tests; unit tests mock all dependencies; **E2E runs the real stack end-to-end with nothing mocked — including a live LLM call** (a stubbed E2E previously hid real bugs and is not used).
 
 ### Test layers
 
@@ -360,7 +362,7 @@ TDD per `AGENTS.md`: write/extend tests from the spec before production code; te
 | Unit (BE) | Fast, all deps mocked | Validation, image compression, session store, prompt assembly, message composition, error mapping | JUnit 5, Mockito, AssertJ |
 | Integration (BE) | Only external LLM mocked | Controller → service → LLM gateway with HTTP; multipart upload; SSE emission | Spring Boot Test, MockMvc, **WireMock** (stub OpenRouter) |
 | Unit (FE) | All deps mocked | Form validation logic, SSE parsing, signal state updates, markdown rendering wiring | Angular testing utilities (CLI default) |
-| E2E | Nothing mocked except LLM (stubbed/recorded) | Full form→decision→chat journey in a browser | Playwright (per qa-engineer) |
+| E2E | Nothing mocked (real stack incl. live LLM) | Full form→decision→chat→reload-restore journey in a browser | Playwright (per qa-engineer) |
 
 ### Key test scenarios
 - **Happy path return — eligible:** valid form (Zwrot) + clean photo → vision says no signs of use → decision `ELIGIBLE`; first message contains decision + disclaimer. Edge: purchase date exactly 14 days ago.

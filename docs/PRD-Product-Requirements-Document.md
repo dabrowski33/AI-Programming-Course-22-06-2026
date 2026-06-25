@@ -132,7 +132,7 @@ The following are explicitly **NOT** part of the MVP. Several are planned for la
 
 - **Authentication / user accounts** — no login, no identity verification.
 - **Customer & purchase-history lookup** — no retrieval of existing customer records or order history from any database in the MVP. *(Planned — Backlog.)*
-- **Session/decision persistence to a database** — no durable storage of sessions, decisions, or audit trail in the MVP. *(Planned — Backlog.)*
+- ~~**Session/decision persistence to a database** — no durable storage of sessions, decisions, or audit trail in the MVP.~~ *(Delivered post-MVP: sessions, form data, image analysis, decision, and chat transcript are now persisted durably in an embedded **H2** database — see `docs/ADR/004-persistence.md`. The uploaded image itself is still not stored — see Backlog.)*
 - **Agent RAG knowledge base** — no retrieval over an internal electronics/specs/procedures knowledge base beyond the two policy documents injected into the prompt. *(Planned — Backlog.)*
 - **Human reviewer console / admin UI** — no back-office screen for triage reviewers.
 - **Multiple image upload / video** — exactly one image; no video, no document attachments.
@@ -160,7 +160,7 @@ The following are explicitly **NOT** part of the MVP. Several are planned for la
 - **Purchase date**: cannot be in the future.
 - **Reason**: required for Complaint, optional for Return.
 - **Language**: all user-facing text in Polish.
-- **Platform**: responsive web (desktop + mobile browsers); single-session, no persistence in MVP.
+- **Platform**: responsive web (desktop + mobile browsers). Sessions are persisted durably (ADR-004), so a case can be reopened by its URL; there are still no user accounts (any holder of the `sessionId` URL can view the case).
 
 ### External document / data references
 
@@ -206,7 +206,7 @@ These starter policy documents are created with the MVP and injected into the ag
 - *Error*: if a follow-up fails, an inline error with retry; the prior conversation is preserved.
 
 ### 9.3 Navigation
-- Single forward transition: **form → chat** on a successful decision. No back-to-form editing in the MVP. Refreshing/leaving ends the session (no persistence).
+- Single forward transition: **form → chat** on a successful decision. No back-to-form editing in the MVP. Refreshing or reopening the chat URL **restores the session** (form-data header, decision, and full transcript) from durable storage (ADR-004).
 
 ---
 
@@ -297,10 +297,11 @@ Politely decline and steer back to the return/complaint case in one short senten
 ### Planned Backlog (post-MVP — architecture should not preclude these)
 The following were deliberately deferred. They are listed so that the ADR and implementation can be designed with seams that make later addition straightforward (e.g. persistence layer, data-access interface, retrieval hook):
 
-1. **Session & decision persistence** — store each session, form data, image analysis, decision, and chat transcript (e.g. in SQLite) to build an audit trail.
-2. **Customer & purchase-history lookup** — enrich decisions with existing customer/order data retrieved from a database.
-3. **Agent RAG knowledge base** — retrieval over electronics specifications and detailed return/complaint procedures beyond the two policy documents.
-4. **Human reviewer console** — a back-office UI to act on **Needs human review** cases.
+1. ~~**Session & decision persistence**~~ — **Delivered.** Each session, form data, image analysis, decision, and chat transcript is stored durably in an embedded **H2** database (Spring Data JPA) to build an audit trail — see `docs/ADR/004-persistence.md`. (SQLite was evaluated and rejected; the vector/RAG store is a separate, deferred decision — ADR-004 §6/§8.)
+2. **Uploaded image storage** — the case photo is currently *not* persisted (analyzed then discarded), so no thumbnail is shown on restore and the audit record has no image. Add durable image storage, ideally an **S3-compatible blob store** with only a reference (key) kept in the DB; mind privacy/retention of customer device photos. *(New — Backlog.)*
+3. **Customer & purchase-history lookup** — enrich decisions with existing customer/order data retrieved from a database.
+4. **Agent RAG knowledge base** — retrieval over electronics specifications and detailed return/complaint procedures beyond the two policy documents. *(Vector/embeddings store to be chosen in its own ADR after research — not SQLite; see ADR-004 §8.)*
+5. **Human reviewer console** — a back-office UI to act on **Needs human review** cases.
 
 ### Assumptions made
 - Primary user is the **end customer** (self-service); the human triage reviewer is an indirect, secondary persona.
@@ -309,6 +310,6 @@ The following were deliberately deferred. They are listed so that the ADR and im
 - One photo per case is sufficient for the MVP assessment.
 
 ### Open questions / deferred decisions
-- Exact retention and audit requirements once persistence is added (depends on NBP/internal compliance) — to be resolved with the Backlog persistence item.
+- Exact retention and audit requirements (depends on NBP/internal compliance). Persistence now keeps data **indefinitely** with no purge/anonymization (ADR-004 §4.4); a retention/TTL policy must be defined with compliance before any real deployment.
 - Whether HEIC/HEIF image support is needed for broader device coverage — currently excluded.
 - The precise SLA/latency target for the image-analysis + decision step — to be defined in the ADR/non-functional requirements.

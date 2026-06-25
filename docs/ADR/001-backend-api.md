@@ -8,7 +8,7 @@
 
 ## 1. Scope
 
-Covers the Spring Boot backend: REST + SSE endpoints, request validation, image compression, orchestration of the LLM calls, the in-memory session store, error handling, and configuration. It does **not** cover the LLM client internals, prompt content, or structured-output schemas (see [`002-llm-integration.md`](002-llm-integration.md)) nor any frontend concern (see [`003-frontend.md`](003-frontend.md)).
+Covers the Spring Boot backend: REST + SSE endpoints, request validation, image compression, orchestration of the LLM calls, the session store (durable H2/JPA — see [`004-persistence.md`](004-persistence.md)), error handling, and configuration. It does **not** cover the LLM client internals, prompt content, or structured-output schemas (see [`002-llm-integration.md`](002-llm-integration.md)) nor any frontend concern (see [`003-frontend.md`](003-frontend.md)).
 
 ---
 
@@ -38,7 +38,7 @@ Layered servlet application. Dependency direction is inward only.
 - **Image (`image`)**
   - `ImageCompressor` — validate format, downscale to a configured max long edge (e.g. 1024 px), re-encode JPEG at a configured quality, return bytes. Pure, unit-testable.
 - **Session (`session`)**
-  - `SessionStore` interface: `create`, `get`, `appendMessage`, `exists`. In-memory implementation backed by a concurrent map. Seam for future SQLite (Backlog).
+  - `SessionStore` interface: `create`, `get`, `appendMessage`, `exists`. Default implementation is **`JpaSessionStore`** (durable, H2 file-backed via Spring Data JPA — see [`004-persistence.md`](004-persistence.md)); an in-memory implementation backed by a concurrent map is kept for tests.
 - **Policy (`policy`)**
   - `PolicyProvider` — loads the two policy documents’ text once and exposes them by scenario (`ZWROT` → return policy, `REKLAMACJA` → complaint policy).
 - **Config (`config`)**
@@ -111,7 +111,7 @@ Request/response DTOs (conceptual; validation annotations applied in code).
 - **Notes:** consumed by the frontend via `fetch()` + `ReadableStream` (POST + headers), not `EventSource`.
 
 ### `GET /api/v1/cases/{sessionId}`
-- **Produces:** `application/json` — `caseSummary` + transcript. `404` if unknown. Convenience for in-session reload; not required by core flow.
+- **Produces:** `application/json` — `{ caseSummary, decision, transcript }`. `404 SESSION_NOT_FOUND` if unknown. Restores the chat screen on reload / deep-link / after a backend restart (ADR-004); `decision` is included so the decision badge/highlight render identically to the post-submit state.
 
 ### `GET /health`
 - Liveness; Spring Boot Actuator `health` endpoint is acceptable.

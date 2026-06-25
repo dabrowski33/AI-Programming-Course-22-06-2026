@@ -751,9 +751,10 @@ flowchart TD
       <h2>Planowany backlog (post-MVP)</h2>
       <p class="section-intro">Świadomie odroczone — wymienione, aby ADR i implementacja zostały zaprojektowane z „szwami" ułatwiającymi późniejsze dodanie.</p>
       <div class="backlog" style="margin-top:22px;">
-        <div class="bl"><div class="n"></div><div><h4>Trwałość sesji i decyzji</h4><p>Zapis każdej sesji, danych formularza, analizy obrazu, decyzji i transkryptu czatu (np. w SQLite) dla audytu.</p></div></div>
+        <div class="bl"><div class="n"></div><div><h4>Trwałość sesji i decyzji — zrealizowane</h4><p>Każda sesja, dane formularza, analiza obrazu, decyzja i transkrypt czatu są trwale zapisywane w osadzonej bazie <strong>H2</strong> (Spring Data JPA) dla audytu — zob. <code>docs/ADR/004-persistence.md</code>. (SQLite oceniono i odrzucono; magazyn wektorów/RAG to osobna, odroczona decyzja — ADR-004 §6/§8.)</p></div></div>
+        <div class="bl"><div class="n"></div><div><h4>Przechowywanie przesłanego zdjęcia</h4><p>Zdjęcie sprawy nie jest obecnie zapisywane (analizowane i odrzucane), więc po przywróceniu sesji nie ma miniatury. Dodać trwałe przechowywanie obrazu, najlepiej w magazynie blob zgodnym z <strong>S3</strong> (w bazie tylko referencja). <em>(Nowe — Backlog.)</em></p></div></div>
         <div class="bl"><div class="n"></div><div><h4>Lookup klienta i historii zakupów</h4><p>Wzbogacenie decyzji o istniejące dane klienta/zamówień z bazy danych.</p></div></div>
-        <div class="bl"><div class="n"></div><div><h4>Baza wiedzy RAG agenta</h4><p>Wyszukiwanie po specyfikacjach elektroniki i szczegółowych procedurach poza dwoma dokumentami polityk.</p></div></div>
+        <div class="bl"><div class="n"></div><div><h4>Baza wiedzy RAG agenta</h4><p>Wyszukiwanie po specyfikacjach elektroniki i szczegółowych procedurach poza dwoma dokumentami polityk. (Magazyn wektorów/embeddingów do wyboru we własnym ADR po researchu — nie SQLite; zob. ADR-004 §8.)</p></div></div>
         <div class="bl"><div class="n"></div><div><h4>Konsola recenzenta</h4><p>Back-office UI do obsługi spraw oznaczonych „Wymaga weryfikacji".</p></div></div>
       </div>
     </section>

@@ -98,7 +98,7 @@ Returned via structured/JSON output (one schema, scenario-relevant fields popula
 - *Raw HTTP/WebClient:* re-implements serialization, streaming parsing, and structured outputs by hand.
 - *LangChain4j:* extra abstraction not needed for three well-defined calls.
 **Consequences:** (+) First-class, documented features; minimal glue. (−) SDK is blocking (handled by SSE worker thread, 001 §6); ties us to the OpenAI-shaped request model (fine via OpenRouter's compatibility).
-**Review trigger:** If we adopt Spring AI for RAG (Backlog) or need multi-provider abstraction.
+**Review trigger:** If we adopt Spring AI for RAG (Backlog) or need multi-provider abstraction. Note: the future **RAG knowledge base / vector store** is a separate, not-yet-made decision — it gets its own ADR after dedicated research and is intentionally decoupled from session persistence (see [`004-persistence.md`](004-persistence.md) §8).
 
 ### Chat Completions API, not the Responses API
 **Status:** Accepted **Date:** 2026-06-24

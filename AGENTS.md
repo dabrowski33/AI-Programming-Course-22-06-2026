@@ -8,8 +8,9 @@ This started as the **base course repository**; the concrete stack and architect
 
 **Decided stack (see `docs/ADR/`):** the app is the **Hardware Service Decision Copilot**.
 - **Backend:** Java 21 + Spring Boot 3.5 (Spring Web MVC) + Maven, calling OpenRouter via the **openai-java** SDK (Chat Completions).
+- **Persistence:** durable session/transcript store in embedded **H2** (file-backed) via Spring Data JPA (ADR-004). **Not SQLite** (evaluated and rejected — ADR-004 §6). The future vector/RAG store is a separate, deferred ADR.
 - **Frontend:** Angular + Angular Material + ngx-markdown (custom streaming chat).
-- **E2E:** Playwright against the real stack.
+- **E2E:** Playwright against the real stack (nothing mocked, including a live LLM call).
 
 (The base course materials reference an alternative TypeScript/Next.js + Vercel AI SDK demo stack; that path was **not** chosen for the NBP edition.)
 
