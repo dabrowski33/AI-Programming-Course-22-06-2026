@@ -19,6 +19,13 @@ The intended outcome: full coverage of all PRD acceptance criteria, built test-f
 | Git | Commit each step onto current branch `electronic-complains-chat-app`; worktrees branch off it and merge back; **no push** |
 | TDD | Test-first, confirm red, implement minimum, verify green, refactor green |
 
+> **Authority & conflicts:** the root `AGENTS.md` (and nested `app/*/AGENTS.md`) is the
+> binding source of truth. If an ADR or this plan ever contradicts it, **stop and flag the
+> conflict** — do not silently follow the weaker rule. Known reconciliation: **E2E mocks
+> NOTHING** (real frontend → real backend → **real OpenRouter**). The earlier wording in
+> ADR-000 §10 ("nothing mocked except LLM") contradicts this and must be corrected to match
+> `AGENTS.md`; the `stub-llm` profile is a dev/demo/integration helper, **never** the E2E gate.
+
 ## Source-of-truth documents (orchestrator quotes the relevant slice into each task prompt)
 
 - `docs/PRD-Product-Requirements-Document.md` — functional behavior, acceptance criteria AC-01..AC-27.
@@ -59,7 +66,7 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 ```
 
 **Must exist before forking:** generated Maven wrapper, both apps scaffolded green, shared contract artifact, shared fixtures (incl. SSE transcript), policy-load decision, WireMock conventions.
-**Must be merged before QA E2E:** BE contract endpoints + LLM integration + streaming; FE intake + chat; deterministic stubbed-LLM run profile.
+**Must be merged before QA E2E:** BE contract endpoints + **real** LLM integration + streaming; FE intake + chat (branded, icons loaded); a real `OPENROUTER_API_KEY` available. (The `stub-llm` profile may exist for dev, but the E2E gate uses the real stack.)
 
 ---
 
@@ -144,10 +151,16 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 
 ## Phase 5 — QA (integration branch, qa-engineer)
 
-1. **5.0** Confirm/boot the deterministic `stub-llm` run profile (from 1.11) for reproducible all-category coverage.
-2. **5.1 Manual smoke** (Playwright MCP) — boot real BE (`stub-llm`) + FE, walk form→decision→chat, screenshots at each step, compare to wireframes + NBP design system; document bugs (no automated tests yet).
-3. **5.2 Automated E2E** (real stack, LLM stubbed) — return+complaint happy paths, all 4 decision categories, validation 400/413/415, LLM-unavailable 502/503 with **retry + data preserved**, incremental SSE render, **disclaimer always present**, off-topic decline-and-redirect. *(ADR-000 §10 scenarios)*
-4. **5.3 Single live smoke** — one real OpenRouter run proving the live provider path (return + complaint), treated as path-smoke, not category assertion.
+> **E2E mocks NOTHING** (root `AGENTS.md`). The authoritative QA gate runs the real
+> frontend → real backend → **real OpenRouter** with a real API key. The `stub-llm`
+> profile is only a fast dev/sanity lane and is **never** the sign-off gate. Use **real
+> images** from `assets/example-images-for-tests/` everywhere (never synthetic JPEGs).
+
+1. **5.0 Real-stack boot** — boot the **real backend** (`./mvnw spring-boot:run`, real `OPENROUTER_API_KEY`) + FE. (Optionally also boot a `stub-llm` instance as a separate, clearly-labelled non-authoritative fast lane.)
+2. **5.1 Manual smoke (Playwright MCP) — MANDATORY, against the real stack.** Walk form→decision→chat→follow-up with a **real photo**; screenshot each step; compare every screen to `docs/design-guidelines.md` **and `assets/homepage.png`** (logo present, navy header, no broken icons, Polish, disclaimer on every decision). File bugs. "Tests pass" ≠ "app works" — this step is required, not optional.
+3. **5.2 Automated E2E (real stack, real LLM).** Assert **structure, not LLM wording**: navigation form→chat, decision bubble shows **one of the four** categories, **disclaimer always present**, incremental SSE render, off-topic decline-and-redirect, validation 400/413/415, LLM-unavailable 502/503 with **retry + data preserved**. Use real images covering JPEG/PNG/WebP.
+4. **5.3 Deterministic category coverage lives at the BE integration layer (WireMock), not E2E.** The four category-logic outcomes (signs-of-use ⇒ NOT_ELIGIBLE, etc.) are asserted in BE integration tests where the LLM response is controlled; E2E must not pin a live model to a specific category (models are nondeterministic).
+5. **5.4 Completion gate:** the real-LLM path must have been exercised end-to-end at least once (5.1 + 5.2) and manually confirmed (5.1) **before** anyone claims the goal is complete.
 
 ---
 
@@ -155,7 +168,7 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 
 - Fix any defects QA filed (routed to be/fe-developer with the failing test reproduced first).
 - `README` run instructions (two dev processes + proxy + env vars).
-- Design polish pass against `design-guidelines.md`.
+- **Design fidelity pass (gated, not cosmetic):** compare each screen to `assets/homepage.png` + `docs/design-guidelines.md` — NBP navy header + gold `logo.svg` on both screens, palette/typography from `design-tokens.json`, **icon font loaded (no broken glyphs)**, Polish `<title>`/`lang="pl"`/favicon. Sign off with side-by-side screenshots.
 - Final merge to `electronic-complains-chat-app`. (No push unless explicitly requested.)
 
 ---
@@ -188,10 +201,10 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 | Phase | LLM source |
 |---|---|
 | 0–2 | None (BE in-memory stub gateway; FE uses fixtures only — FE never touches the LLM, TAC-003-10/TAC-09) |
-| 1 / 3 / 4 integration tests | **WireMock** (canned structured outputs, 5xx fail-closed, SSE stream, `/responses`-never) |
+| 1 / 3 / 4 integration tests | **WireMock** (canned structured outputs, 5xx fail-closed, SSE stream, `/responses`-never). This is where deterministic all-category coverage lives. |
 | 3 prompt iteration | **Live** (manual, outside the suite) |
-| 5.2 E2E suite | Deterministic `stub-llm` run profile (stable all-category coverage) |
-| 5.3 + 6 | **Live** OpenRouter, once each (path smoke) |
+| 5.1 manual smoke + 5.2 automated E2E | **Live OpenRouter (real stack)** — E2E mocks nothing. Assert structure, not wording. |
+| `stub-llm` profile | Dev/demo/fast-sanity lane only — **never** the E2E sign-off gate. |
 
 ---
 
@@ -211,7 +224,10 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 3. **SSE wire-format drift between isolated worktrees** → freeze byte-level SSE fixture in Phase 0 (0.5); steps 1.10 and 2.4 both test against it.
 4. **FE blocking on BE** → contract (0.4) + fixtures (0.5) make Phase 2 fully concurrent; only 4.3 needs a live backend.
 5. **Structured-output schema mismatch (ImageAnalysis/DecisionResult)** → derive both BE classes and FE models from the single contract artifact; per-category fixtures catch drift.
-6. **Live-model nondeterminism on category boundaries** → assert category logic only against stubs; live runs are path-smoke only.
+6. **Live-model nondeterminism on category boundaries** → assert *category logic* deterministically at the **BE integration layer (WireMock)**; in **E2E (real LLM)** assert only *structure* (a valid category is shown, disclaimer present, streaming works, off-topic redirects). Never stub the LLM in E2E to force a category — that hides whether the app actually works.
+7. **Stubbed E2E creating false confidence** (this happened) → E2E mocks NOTHING; the real-LLM path must run end-to-end at least once and be manually confirmed (Playwright MCP) before "complete" is claimed. `stub-llm` is never the E2E gate.
+8. **UI ships off-brand / with broken icons** (this happened: no logo, no header, unloaded icon font) → visual fidelity is a gated acceptance criterion; compare every screen to `assets/homepage.png` + `docs/design-guidelines.md`; verify no `<mat-icon>` renders as broken text.
+9. **Synthetic test images hide real bugs** (this happened: BUG-001) → always use real photos from `assets/example-images-for-tests/` in both manual and automated tests.
 
 ---
 
@@ -219,9 +235,9 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 
 - **Backend:** `cd app/backend && ./mvnw test && ./mvnw clean package` — all green; TAC-001-* and TAC-002-* covered.
 - **Frontend:** `cd app/frontend && npm test && npm run lint && npm run build` — all green; TAC-003-* covered.
-- **E2E:** boot BE (`stub-llm`) + FE, run Playwright suite — full form→decision→chat journey + validation/error/retry/off-topic paths green.
-- **Live smoke:** one real OpenRouter run each for return and complaint completes form→decision→chat.
-- **Manual:** open `http://localhost:4200`, confirm Polish UI, NBP branding, disclaimer on every decision, retry preserves form data.
+- **E2E (real stack, real LLM):** boot **real BE** (`./mvnw spring-boot:run`, real key) + FE, run Playwright suite — full form→decision→chat journey + validation/error/retry/off-topic paths green. Structure asserted, not LLM wording. Real images from `assets/example-images-for-tests/`.
+- **Manual (Playwright MCP, real stack):** walk every PRD §4 flow by hand with a real photo; confirm Polish UI, NBP branding (logo + navy header), no broken icons, disclaimer on every decision, retry preserves form data; compare to `assets/homepage.png`.
+- **Completion gate:** do not claim "complete" until the real-LLM path has run end-to-end and been manually confirmed.
 
 ---
 
@@ -239,3 +255,7 @@ VERIFY: <exact command>
 COMMIT: <exact message, e.g. "Backend: add ImageCompressor with downscale + JPEG re-encode">
 REPORT BACK: red→green evidence + the commit hash
 ```
+
+**Conflict rule for every agent:** if the task, an ADR, or this plan contradicts the root
+or nested `AGENTS.md` (e.g. "stub the LLM in E2E"), **STOP and flag it** — do not silently
+comply. The `AGENTS.md` files win.
