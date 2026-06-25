@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 @Service
 public class CaseService {
@@ -24,6 +25,7 @@ public class CaseService {
         "image/jpeg", "image/png", "image/webp"
     );
     private static final long MAX_IMAGE_SIZE = 10L * 1024 * 1024; // 10MB
+    private static final int MAX_LLM_ATTEMPTS = 3;
 
     private final LlmGateway llmGateway;
     private final ImageCompressor imageCompressor;
@@ -67,15 +69,15 @@ public class CaseService {
             request.getReason()
         );
 
-        // Analyze image
-        ImageAnalysis imageAnalysis = llmGateway.analyzeImage(request.getType(), compressedBytes);
+        // Analyze image (with retry)
+        ImageAnalysis imageAnalysis = withRetry(() -> llmGateway.analyzeImage(request.getType(), compressedBytes));
         session.setImageAnalysis(imageAnalysis);
 
         // Get policy text
         String policyText = policyProvider.getPolicy(request.getType());
 
-        // Get decision
-        DecisionResult decisionResult = llmGateway.decide(request.getType(), session, policyText);
+        // Get decision (with retry)
+        DecisionResult decisionResult = withRetry(() -> llmGateway.decide(request.getType(), session, policyText));
         session.setDecision(decisionResult);
 
         // Compose first message
@@ -102,5 +104,17 @@ public class CaseService {
         );
 
         return new SubmitCaseResponse(sessionId, decisionDto, firstMessage, caseSummaryDto);
+    }
+
+    private <T> T withRetry(Supplier<T> call) {
+        LlmUnavailableException lastException = null;
+        for (int i = 0; i < MAX_LLM_ATTEMPTS; i++) {
+            try {
+                return call.get();
+            } catch (LlmUnavailableException e) {
+                lastException = e;
+            }
+        }
+        throw lastException;
     }
 }
