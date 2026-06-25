@@ -1,5 +1,6 @@
 package pl.nbp.copilot.llm;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -11,6 +12,12 @@ import java.util.List;
 @Component
 @Profile({"stub-llm", "test"})
 public class StubLlmGateway implements LlmGateway {
+
+    private final ObjectMapper objectMapper;
+
+    public StubLlmGateway(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public ImageAnalysis analyzeImage(CaseType scenario, byte[] imageBytes) {
@@ -56,7 +63,8 @@ public class StubLlmGateway implements LlmGateway {
         try {
             String[] tokens = {"Dziękujemy", " za", " pytanie", "."};
             for (String token : tokens) {
-                emitter.send(SseEmitter.event().data(token));
+                // JSON-encode each token (mirrors OpenRouterLlmGateway) so spacing survives SSE.
+                emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(token)));
             }
             emitter.send(SseEmitter.event().name("done").data(""));
             emitter.complete();

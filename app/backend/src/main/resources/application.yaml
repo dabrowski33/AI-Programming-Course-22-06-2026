@@ -10,10 +10,18 @@ management:
     web:
       exposure:
         include: health
+logging:
+  level:
+    # INFO by default — DEBUG also logs raw LLM JSON (may contain user-provided content), so it is
+    # opt-in for local debugging only: run with APP_LOG_LEVEL=DEBUG.
+    pl.nbp.copilot: ${APP_LOG_LEVEL:INFO}
 app:
   llm:
     base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
-    api-key: ${OPENAI_API_KEY:${OPENROUTER_API_KEY:}}
+    # OpenRouter is the only LLM provider for this app (see ADR-000). Use OPENROUTER_API_KEY
+    # exclusively — never fall back to a machine-global OPENAI_API_KEY, which would leak a
+    # personal OpenAI key to the OpenRouter endpoint (causes 401 "Missing Authentication header").
+    api-key: ${OPENROUTER_API_KEY:}
     vision-model: ${OPENROUTER_VISION_MODEL:${OPENROUTER_MODEL:openai/gpt-4o-mini}}
     text-model: ${OPENROUTER_TEXT_MODEL:${OPENROUTER_MODEL:openai/gpt-4o-mini}}
     app-url: ${OPENROUTER_APP_URL:}

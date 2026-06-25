@@ -8,29 +8,41 @@ import pl.nbp.copilot.model.ImageAnalysis;
 @Component
 public class PromptCatalog {
 
+    /**
+     * JSON schema the vision model MUST follow. The field names and enum values map 1:1 to
+     * {@link pl.nbp.copilot.model.ImageAnalysis} and the parser in OpenRouterLlmGateway.
+     * Without this explicit contract the model invents its own keys and the analysis comes back empty.
+     */
+    private static final String IMAGE_ANALYSIS_SCHEMA = """
+        Odpowiedz WYŁĄCZNIE obiektem JSON o DOKŁADNIE takich kluczach (nie zmieniaj nazw pól):
+        {
+          "summary": string,            // krótkie podsumowanie stanu sprzętu po polsku
+          "observations": string[],     // lista konkretnych obserwacji po polsku (1-5 pozycji)
+          "confidence": "LOW" | "MEDIUM" | "HIGH",   // Twoja pewność oceny
+          "signsOfUse": "YES" | "NO" | "UNCERTAIN",      // ślady użytkowania
+          "visibleDamage": "YES" | "NO" | "UNCERTAIN",   // widoczne uszkodzenia
+          "complete": "YES" | "NO" | "UNCERTAIN",        // czy sprzęt wygląda na kompletny
+          "resellableAsNew": "YES" | "NO" | "UNCERTAIN", // czy nadaje się do sprzedaży jako nowy
+          "damageType": string | null,  // typ uszkodzenia po polsku lub null gdy brak
+          "likelyCause": "MANUFACTURING_DEFECT" | "USER_CAUSED" | "NORMAL_WEAR" | "INCONCLUSIVE"
+        }
+        Używaj wyłącznie wartości enum podanych powyżej (wielkimi literami, po angielsku).
+        Gdy nie możesz czegoś ocenić z pewnością, użyj "UNCERTAIN" (dla pól tri-state) lub "INCONCLUSIVE" (dla likelyCause).
+        Nie dodawaj żadnego tekstu poza obiektem JSON.""";
+
     public String imageAnalysisPrompt(CaseType scenario) {
-        return switch (scenario) {
+        String intro = switch (scenario) {
             case ZWROT -> """
                 Jesteś asystentem analizy zdjęć dla serwisu obsługi zwrotów sprzętu elektronicznego.
-                Przeanalizuj zdjęcie i określ:
-                1. Czy widoczne są ślady użytkowania (zarysowania, przetarcia, zabrudzenia)?
-                2. Czy widoczne są uszkodzenia?
-                3. Czy sprzęt wygląda na kompletny?
-                4. Czy sprzęt nadaje się do ponownej sprzedaży jako nowy?
-
-                Używaj wyłącznie tego, co widać na zdjęciu. Gdy nie możesz ocenić czegoś z całą pewnością, użyj wartości UNCERTAIN.
-                Odpowiedz wyłącznie w formacie JSON zgodnym z podanym schematem.
-                """;
+                Przeanalizuj zdjęcie i oceń: ślady użytkowania, widoczne uszkodzenia, kompletność oraz czy
+                sprzęt nadaje się do ponownej sprzedaży jako nowy.""";
             case REKLAMACJA -> """
                 Jesteś asystentem analizy zdjęć dla serwisu reklamacyjnego sprzętu elektronicznego.
-                Przeanalizuj zdjęcie i określ:
-                1. Czy widoczne jest uszkodzenie? Jeśli tak — jaki jest jego typ?
-                2. Jaka jest najbardziej prawdopodobna przyczyna: wada produkcyjna, uszkodzenie przez użytkownika, normalne zużycie, czy nie można określić?
-
-                Używaj wyłącznie tego, co widać na zdjęciu. Gdy przyczyna jest niejednoznaczna, użyj INCONCLUSIVE.
-                Odpowiedz wyłącznie w formacie JSON zgodnym z podanym schematem.
-                """;
+                Przeanalizuj zdjęcie i oceń: czy widoczne jest uszkodzenie i jakiego typu, oraz jaka jest
+                najbardziej prawdopodobna przyczyna (wada produkcyjna, uszkodzenie przez użytkownika,
+                normalne zużycie czy niejednoznaczna).""";
         };
+        return intro + "\n\nUżywaj wyłącznie tego, co faktycznie widać na zdjęciu — nie zgaduj.\n\n" + IMAGE_ANALYSIS_SCHEMA;
     }
 
     public String decisionPrompt(CaseType scenario, CaseSession session, ImageAnalysis analysis, String policyText) {
@@ -64,11 +76,12 @@ public class PromptCatalog {
                 POLITYKA ZWROTÓW (stosuj wyłącznie te zasady):
                 %s
 
-                Na podstawie powyższych danych oceń zasadność zwrotu. Wydaj dokładnie jedną z czterech decyzji: ELIGIBLE, NOT_ELIGIBLE, NEEDS_HUMAN_REVIEW, MORE_INFO_REQUIRED.
+                Na podstawie powyższych danych oceń zasadność zwrotu.
                 Nigdy nie wymyślaj faktów ani zasad spoza podanej polityki.
                 Gdy dowody są sprzeczne lub niewystarczające — wybierz NEEDS_HUMAN_REVIEW lub MORE_INFO_REQUIRED.
-                Odpowiedź w języku polskim, wyłącznie w formacie JSON zgodnym z podanym schematem.
-                """.formatted(formData, analysisData, policyText);
+
+                %s
+                """.formatted(formData, analysisData, policyText, DECISION_SCHEMA);
             case REKLAMACJA -> """
                 Jesteś agentem oceniającym zasadność reklamacji sprzętu elektronicznego.
 
@@ -81,13 +94,30 @@ public class PromptCatalog {
                 POLITYKA REKLAMACJI (stosuj wyłącznie te zasady):
                 %s
 
-                Na podstawie powyższych danych oceń zasadność reklamacji. Wydaj dokładnie jedną z czterech decyzji: ELIGIBLE, NOT_ELIGIBLE, NEEDS_HUMAN_REVIEW, MORE_INFO_REQUIRED.
+                Na podstawie powyższych danych oceń zasadność reklamacji.
                 Nigdy nie wymyślaj faktów ani zasad spoza podanej polityki.
                 Gdy dowody są sprzeczne lub niewystarczające — wybierz NEEDS_HUMAN_REVIEW lub MORE_INFO_REQUIRED.
-                Odpowiedź w języku polskim, wyłącznie w formacie JSON zgodnym z podanym schematem.
-                """.formatted(formData, analysisData, policyText);
+
+                %s
+                """.formatted(formData, analysisData, policyText, DECISION_SCHEMA);
         };
     }
+
+    /**
+     * JSON schema the decision model MUST follow. Keys map 1:1 to
+     * {@link pl.nbp.copilot.model.DecisionResult} and the parser in OpenRouterLlmGateway.
+     */
+    private static final String DECISION_SCHEMA = """
+        Odpowiedz WYŁĄCZNIE obiektem JSON o DOKŁADNIE takich kluczach (nie zmieniaj nazw pól):
+        {
+          "category": "ELIGIBLE" | "NOT_ELIGIBLE" | "NEEDS_HUMAN_REVIEW" | "MORE_INFO_REQUIRED",
+          "justification": string,   // zwięzłe uzasadnienie decyzji po polsku (2-4 zdania), oparte na danych i polityce
+          "nextSteps": string,       // konkretne następne kroki dla klienta po polsku
+          "missingInfo": string[]    // gdy MORE_INFO_REQUIRED: lista brakujących informacji po polsku; w innym wypadku []
+        }
+        Pola "justification" oraz "nextSteps" są OBOWIĄZKOWE i nie mogą być puste.
+        Używaj wyłącznie wartości enum podanych dla pola "category" (wielkimi literami, po angielsku).
+        Nie dodawaj żadnego tekstu poza obiektem JSON.""";
 
     public String chatSystemPrompt(CaseSession session) {
         return """

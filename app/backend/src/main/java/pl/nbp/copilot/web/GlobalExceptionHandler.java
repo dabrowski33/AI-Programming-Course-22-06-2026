@@ -1,5 +1,7 @@
 package pl.nbp.copilot.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +21,15 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // User-facing messages are deliberately generic: never leak upstream/provider details
+    // (e.g. auth errors, stack traces) to the client. The real cause is logged server-side.
+    private static final String LLM_UNAVAILABLE_MESSAGE =
+        "Usługa oceny AI jest chwilowo niedostępna. Twoje dane nie zostały utracone — spróbuj ponownie za chwilę.";
+    private static final String INTERNAL_ERROR_MESSAGE =
+        "Wystąpił nieoczekiwany błąd. Spróbuj ponownie później.";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
@@ -70,8 +81,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LlmUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleLlmUnavailable(LlmUnavailableException ex) {
+        // Log the real cause (may contain provider error text) but never return it to the client.
+        log.warn("LLM unavailable: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-            .body(new ErrorResponse("LLM_UNAVAILABLE", ex.getMessage(), Map.of()));
+            .body(new ErrorResponse("LLM_UNAVAILABLE", LLM_UNAVAILABLE_MESSAGE, Map.of()));
     }
 
     @ExceptionHandler(UnsupportedImageTypeException.class)
@@ -88,7 +101,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
+        log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(new ErrorResponse("INTERNAL_ERROR", "An unexpected error occurred", Map.of()));
+            .body(new ErrorResponse("INTERNAL_ERROR", INTERNAL_ERROR_MESSAGE, Map.of()));
     }
 }

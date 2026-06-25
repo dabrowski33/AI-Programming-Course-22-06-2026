@@ -55,6 +55,16 @@
             <version>0.4.21</version>
         </dependency>
 
+        <!-- WebP ImageIO reader: the JDK cannot decode WebP out of the box, yet WebP is an
+             advertised upload format. Registers a WebP ImageReader via ServiceLoader so
+             ImageCompressor (ImageIO.read) can handle image/webp uploads. Version 0.10.0 (2024)
+             bundles a patched libwebp (>= 1.3.2, post CVE-2023-4863). -->
+        <dependency>
+            <groupId>com.github.usefulness</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.10.0</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

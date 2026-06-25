@@ -2,6 +2,8 @@ package pl.nbp.copilot.llm;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.openai.client.OpenAIClient;
 import com.openai.core.http.StreamResponse;
 import com.openai.models.ResponseFormatJsonObject;
@@ -37,6 +39,8 @@ import java.util.List;
 @Service
 @Profile("!stub-llm")
 public class OpenRouterLlmGateway implements LlmGateway {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenRouterLlmGateway.class);
 
     private final OpenAIClient client;
     private final LlmProperties props;
@@ -84,9 +88,11 @@ public class OpenRouterLlmGateway implements LlmGateway {
         } catch (LlmUnavailableException e) {
             throw e;
         } catch (Exception e) {
+            log.warn("Vision model call failed: {}", e.getMessage());
             throw new LlmUnavailableException("Vision model call failed: " + e.getMessage());
         }
 
+        log.debug("Vision model raw JSON: {}", json);
         return parseImageAnalysis(json);
     }
 
@@ -113,9 +119,11 @@ public class OpenRouterLlmGateway implements LlmGateway {
         } catch (LlmUnavailableException e) {
             throw e;
         } catch (Exception e) {
+            log.warn("Text model call failed: {}", e.getMessage());
             throw new LlmUnavailableException("Text model call failed: " + e.getMessage());
         }
 
+        log.debug("Decision model raw JSON: {}", json);
         return parseDecisionResult(json);
     }
 
@@ -131,7 +139,10 @@ public class OpenRouterLlmGateway implements LlmGateway {
                         .orElse("");
                 if (!delta.isEmpty()) {
                     try {
-                        emitter.send(SseEmitter.event().data(delta));
+                        // JSON-encode each token so leading/trailing spaces, newlines and unicode
+                        // survive the SSE transport intact (raw `data:` framing would otherwise
+                        // strip token spacing — see sse-parser.ts).
+                        emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(delta)));
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
@@ -212,6 +223,7 @@ public class OpenRouterLlmGateway implements LlmGateway {
                     readStringList(node.path("missingInfo"))
             );
         } catch (Exception e) {
+            log.warn("Failed to parse DecisionResult, falling back to NEEDS_HUMAN_REVIEW: {}", e.getMessage());
             return new DecisionResult(DecisionCategory.NEEDS_HUMAN_REVIEW,
                     "Nie udało się przetworzyć odpowiedzi systemu.", "", List.of());
         }
