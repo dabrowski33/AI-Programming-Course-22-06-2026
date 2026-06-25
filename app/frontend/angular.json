@@ -29,6 +29,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "../../assets/fonts",
+                "output": "assets/fonts"
               }
             ],
             "styles": [
@@ -91,6 +96,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "../../assets/fonts",
+                "output": "assets/fonts"
               }
             ],
             "styles": [
