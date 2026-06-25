@@ -23,24 +23,34 @@ cd app/frontend && npm install && npm start
 
 Otwórz: **http://localhost:4200**
 
-## Stub-LLM — routing kategorii
+> **Wymaga Java 21** (domyślna na maszynie może być nowsza): ustaw
+> `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`. Spring nie ładuje `.env` automatycznie —
+> przed `spring-boot:run` wczytaj go: `set -a; . ../../.env; set +a`. Backend używa **wyłącznie
+> `OPENROUTER_API_KEY`** (nie korzysta z `OPENAI_API_KEY`).
 
-Wstaw prefix w polu "Model": `ELIGIBLE:...`, `NOT_ELIGIBLE:...`, `NEEDS_HUMAN_REVIEW:...`, `MORE_INFO_REQUIRED:...`
+## Profil stub-llm (tylko dev)
+
+Profil `stub-llm` to **wyłącznie** szybka ścieżka deweloperska bez klucza API (zwraca kanoniczne
+odpowiedzi). **Nie jest** bramką E2E — testy E2E uruchamiają realny stos z prawdziwym OpenRouter.
 
 ## Testy
 
 ```bash
-cd app/backend  && ./mvnw test           # 53 testy BE
-cd app/frontend && npm test -- --watch=false --browsers=ChromeHeadless  # 32 testy FE
-cd app/e2e      && npx playwright test   # E2E (wymaga uruchomionej aplikacji)
+cd app/backend  && ./mvnw test           # 53 testy BE (JUnit + WireMock)
+cd app/frontend && npm test -- --watch=false --browsers=ChromeHeadless  # 34 testy FE
+cd app/e2e      && npx playwright test   # E2E na realnym stosie z prawdziwym LLM (wymaga uruchomionej aplikacji + OPENROUTER_API_KEY)
 ```
+
+E2E używa prawdziwych zdjęć z `assets/example-images-for-tests/` i sprawdza **strukturę**
+(nawigacja, jedna z 4 kategorii decyzji, klauzula, strumieniowanie, odrzucenie pytań off-topic),
+a nie konkretnych słów modelu.
 
 ## Stack
 
 The stack is decided in `../docs/ADR/`:
 - **Backend** (`backend/`) — Java 21 + Spring Boot 3.5 (Spring Web MVC) + Maven; calls OpenRouter via the openai-java SDK.
 - **Frontend** (`frontend/`) — Angular 18 + Angular Material + ngx-markdown (custom streaming chat).
-- **E2E** (`e2e/`) — Playwright against the real stack (LLM stubbed).
+- **E2E** (`e2e/`) — Playwright against the real stack (real OpenRouter LLM, real images).
 
 ## How to start
 
@@ -76,7 +86,7 @@ Use this checklist during scaffolding. Some items are provided by the generators
 ### Testing
 - [ ] Backend unit/integration: JUnit 5 + Mockito + AssertJ + Spring Boot Test/MockMvc; **WireMock** to stub OpenRouter
 - [ ] Frontend unit: Angular testing utilities (`*.spec.ts`)
-- [ ] E2E: Playwright against the real stack (LLM stubbed/recorded)
+- [ ] E2E: Playwright against the real stack (real OpenRouter LLM, real images)
 
 ### Environment
 - [ ] `.env.example` with required env vars (see `../docs/ADR/000-main-architecture.md` §7)

@@ -128,7 +128,7 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 
 > WireMock for all tests; **live key used for manual prompt iteration only** (outside the suite).
 
-1. **3.1 OpenAiClientConfig** — explicit `.baseUrl()` + key precedence (`OPENAI_API_KEY` wins, else `OPENROUTER_API_KEY`); **never `fromEnv()`**, never api.openai.com; optional attribution headers. *(TAC-002-01/02)*
+1. **3.1 OpenAiClientConfig** — explicit `.baseUrl()` + **`OPENROUTER_API_KEY` only** (OpenRouter is the sole provider; do **not** fall back to a machine-global `OPENAI_API_KEY` — sending an OpenAI key to the OpenRouter endpoint yields `401: Missing Authentication header`, see Remediation §R1); **never `fromEnv()`**, never api.openai.com; optional attribution headers. *(TAC-002-01/02)*
 2. **3.2 Model routing** — vision→`OPENROUTER_VISION_MODEL`, decide/chat→`OPENROUTER_TEXT_MODEL`, fallback `OPENROUTER_MODEL`. *(TAC-002-03)*
 3. **3.3 analyzeImage** — base64 `data:image/jpeg` image_url; structured `ImageAnalysis` per scenario. *(TAC-002-06, AC-11/12/13)*
 4. **3.4 decide** — structured `DecisionResult`; **full policy text present in request payload**; per-category parse. *(TAC-002-04/05, AC-14/16/17)*
@@ -238,6 +238,49 @@ Phase 0 (foundation + contract freeze)  ──►  M0 merge  ──►  FORK two
 - **E2E (real stack, real LLM):** boot **real BE** (`./mvnw spring-boot:run`, real key) + FE, run Playwright suite — full form→decision→chat journey + validation/error/retry/off-topic paths green. Structure asserted, not LLM wording. Real images from `assets/example-images-for-tests/`.
 - **Manual (Playwright MCP, real stack):** walk every PRD §4 flow by hand with a real photo; confirm Polish UI, NBP branding (logo + navy header), no broken icons, disclaimer on every decision, retry preserves form data; compare to `assets/homepage.png`.
 - **Completion gate:** do not claim "complete" until the real-LLM path has run end-to-end and been manually confirmed.
+
+---
+
+## Post-implementation remediation log (2026-06-25)
+
+The first implementation pass shipped with **stubbed E2E tests that mocked the core LLM
+functionality**, hiding that the app did not actually work end-to-end. A real-verification pass
+(real backend → real OpenRouter → real device photos, plus a manual Playwright MCP walkthrough)
+found and fixed the following. All BE (53) + FE (34) unit tests and the rewritten E2E suite (9,
+real stack) are green, and every flow was manually confirmed.
+
+- **R1 — LLM 401 (app never reached the model).** `application.yaml` resolved the key as
+  `${OPENAI_API_KEY:${OPENROUTER_API_KEY:}}`, so a machine-global personal `OPENAI_API_KEY` was
+  sent to the OpenRouter base URL → `401: Missing Authentication header` → every submit 502'd.
+  Fixed to `api-key: ${OPENROUTER_API_KEY:}` (OpenRouter only). Plan §3.1 corrected.
+- **R2 — empty AI output.** Prompts said "respond in JSON per the schema" but **never gave a
+  schema**; with `json_object` mode the model invented its own keys (`{decision:…}`,
+  `{damage_visible:…}`), so `justification`/`nextSteps` and the whole `ImageAnalysis` parsed to
+  empty. Fixed by embedding the exact field/enum schema in `PromptCatalog` (both prompts).
+- **R3 — WebP uploads 400'd.** The JDK `ImageIO` cannot decode WebP, an advertised format. Added
+  `com.github.usefulness:webp-imageio:0.10.0` (bundles patched libwebp, post CVE-2023-4863).
+- **R4 — streamed chat text was mangled.** Backend emitted raw `data:<token>`; the FE parser
+  `.trim()`-ed each frame, destroying token spacing ("Chętnie pomogę" → "Chętniepomogę"). Fixed by
+  **JSON-encoding each SSE delta** on the backend and JSON-parsing on the FE (preserves spaces,
+  newlines, unicode). SSE unit tests + fixture updated.
+- **R5 — manual Polish date entry failed validation.** The datepicker used the default en-US
+  `NativeDateAdapter`, which can't parse `15.01.2026`; the placeholder promised `DD.MM.RRRR`. Added
+  a `PlDateAdapter` + `pl-PL` locale; typed Polish dates now parse and the calendar is localized.
+- **R6 — off-brand, "very ugly" UI.** No NBP header/logo, off-brand amber Material accent, and the
+  Material icon font wasn't loaded (icons rendered as literal text, e.g. "upload"). Added an NBP
+  navy shell (gold `logo.svg` header + footer disclaimer), NBP-blue accent, Material Icons font,
+  `lang="pl"` + proper `<title>`. Verified against `assets/homepage.png`.
+- **R7 — silent failures / leaked internals.** A failed submit gave the user no feedback, and the
+  502 body leaked the upstream error text. FE now shows a prominent error banner (data preserved,
+  scrolled into view, button re-enabled); BE returns a safe generic Polish message and logs the
+  real cause server-side. Raw-LLM DEBUG logging is opt-in (`APP_LOG_LEVEL`, default INFO).
+- **R8 — E2E rewritten** to the real stack with real images and structural assertions (valid
+  decision is one-of-four, disclaimer present, incremental streaming, off-topic redirect,
+  validation paths, date regression). The old stub-prefix routing was removed.
+
+> **Runtime note:** the app requires **Java 21** (the machine default is Java 25); build/run with
+> `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`. Spring does not auto-load `.env`; source it
+> (`set -a; . ./.env; set +a`) before `spring-boot:run`.
 
 ---
 
