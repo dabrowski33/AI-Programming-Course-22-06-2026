@@ -23,30 +23,21 @@ This is the **Hardware Service Decision Copilot** — a multimodal AI assistant 
 - `AGENTS.md` — root project rules
 - `app/e2e/AGENTS.md` — the **authoritative** E2E rules; if it conflicts with anything weaker, it and the root `AGENTS.md` win — STOP and flag the conflict.
 
-## Test Strategy (per ADR + app/e2e/AGENTS.md)
+## Test Strategy
 
-**E2E mocks NOTHING.** The authoritative E2E gate runs the **real** stack end-to-end: real Angular → real Spring Boot → **real OpenRouter** with a real `OPENROUTER_API_KEY`. Never run the sign-off suite on the `stub-llm` profile, and never mock/stub/record the LLM in E2E (no WireMock, no canned JSON, no prefix-driven fakes). A stubbed E2E proves nothing — it once hid real bugs (BUG-001) and created false confidence.
+**E2E mocks NOTHING** — the sign-off gate runs the real stack end-to-end, including a live LLM call. Never stub, mock, or record the LLM in E2E, and never run the gate on a stub profile. The authoritative, detailed E2E rules live in `app/e2e/AGENTS.md` — follow them.
 
-- **Deterministic category coverage** (signs-of-use ⇒ NOT_ELIGIBLE, etc.) lives in **BE integration tests with WireMock**, never in E2E against a live model.
-- **Assert structure, not LLM wording** (models are nondeterministic): navigation form→chat, the decision bubble shows **one of the four** categories, the mandatory disclaimer is always present, SSE renders incrementally, off-topic follow-ups are declined, and validation/retry paths (400/413/415, 502/503 with data preserved) behave.
-- Use **real device photos** from `assets/example-images-for-tests/` (JPEG/PNG/WebP) — never synthetic 1×1 / hex-blob images.
-- `stub-llm` exists only as a fast dev/demo lane; you may keep one clearly-labelled non-authoritative "smoke (stubbed)" run, but the sign-off gate is the real stack.
+- Deterministic LLM-output logic belongs in **BE integration tests** (where the LLM is mocked), not in E2E against a live model.
+- E2E asserts **structure, not LLM wording** — models are nondeterministic.
 
 ## QA Workflow
 
-### Phase 1: Manual Smoke Test
-1. Start the backend — from `app/backend/`: `./mvnw spring-boot:run` (Spring Boot on `:8080`, requires `OPENROUTER_API_KEY`).
-2. Start the frontend — from `app/frontend/`: `npm start` (Angular on `:4200`, `/api` proxied to the backend).
-3. Use Playwright MCP / browser automation to open `http://localhost:4200`.
-4. Exercise the full user flow (form → decision → chat), taking screenshots at each step.
-5. Analyze all screenshots — compare against wireframes and the design system.
-6. If any step fails, document the bug; do not write automated tests yet.
+Do **both**, in order — "tests pass" ≠ "the app works":
 
-### Phase 2: Automated E2E Tests
-Codify the verified working behavior using Playwright against the **real stack — nothing mocked, including a live OpenRouter call**. Verify SSE chat streaming renders incrementally and the decision message always shows the mandatory disclaimer.
+1. **Manual smoke (Playwright MCP).** Drive the running app by hand, screenshot each step, and compare against `docs/design-guidelines.md`. File bugs; don't automate yet.
+2. **Automated E2E (Playwright).** Codify the verified behavior against the real stack.
 
-### Completion gate
-QA does **BOTH** — automated *and* manual. A task is **not** complete until the real-LLM path has been exercised end-to-end at least once **and** manually confirmed: drive the real app by hand (Playwright MCP), screenshot each step with real photos, and compare every screen against `docs/design-guidelines.md` and `assets/homepage.png` (NBP logo, navy header, no broken icons, Polish everywhere, disclaimer on every decision). "Tests pass" ≠ "the app works."
+A task is not complete until the real-LLM path has been exercised end-to-end and manually confirmed. Run/setup commands live in `app/README.md` and `app/e2e/AGENTS.md`.
 
 ## Tooling
 
