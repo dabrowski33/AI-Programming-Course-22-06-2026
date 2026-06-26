@@ -29,15 +29,16 @@ This is the **Hardware Service Decision Copilot** — a multimodal AI assistant 
 
 - Deterministic LLM-output logic belongs in **BE integration tests** (where the LLM is mocked), not in E2E against a live model.
 - E2E asserts **structure, not LLM wording** — models are nondeterministic.
+- When a test needs an image/photo input, use a **real photo**, never a synthetic/stub/placeholder image — fake images give false results and hide real bugs.
 
 ## QA Workflow
 
 Do **both**, in order — "tests pass" ≠ "the app works":
 
-1. **Manual smoke (Playwright MCP).** Drive the running app by hand, screenshot each step, and compare against `docs/design-guidelines.md`. File bugs; don't automate yet.
+1. **Manual verification — does it really work AND look right?** Drive the running app by hand with **Playwright MCP or Chrome DevTools MCP**, screenshot each step, and visually compare every screen against `docs/design-guidelines.md` (it links the reference-app screenshot). File bugs; don't automate yet.
 2. **Automated E2E (Playwright).** Codify the verified behavior against the real stack.
 
-A task is not complete until the real-LLM path has been exercised end-to-end and manually confirmed. Run/setup commands live in `app/README.md` and `app/e2e/AGENTS.md`.
+A task is not complete until the real-LLM path has been exercised end-to-end and manually confirmed (works + looks right). Run/setup commands live in `app/README.md` and `app/e2e/AGENTS.md`.
 
 ## Tooling
 
